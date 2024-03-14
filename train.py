@@ -43,6 +43,7 @@ def train():
     
     # Implement epsilon-greedy policy
     def select_action(state, epsilon):
+        # print(state.shape)
         if random.random() > epsilon:
             with torch.no_grad():
                 return q_network(state.float()).argmax(1).view(1, 1)
@@ -50,9 +51,10 @@ def train():
             return torch.tensor([[random.randrange(4)]], dtype=torch.long)
     
     # Setup the environment
-    env = gym.make('snake-v0')
-    env.grid_size = (24, 24)
+    env = gym.make('snake-v0', grid_size=(24, 24))
+    # env.grid_size = (24, 24)
     state = env.reset()
+    # print(state.shape)
     # state = preprocess(state)
 
     # Training loop
@@ -64,7 +66,8 @@ def train():
         first_action = random.randrange(1, 4)
         curr_state, _, _, _ = env.step(first_action)
         curr_state = preprocess(curr_state) # 24x24
-        state = torch.tensor(np.stack((curr_state, prev_state))).unsqueeze(0) # 1x2x24x24
+        state = torch.tensor(np.stack((curr_state, prev_state)), dtype=torch.float).unsqueeze(0) # 1x2x24x24
+        # print(state.shape)
         
         while True: # for t in count():
             # Select and perform an action
@@ -72,7 +75,7 @@ def train():
             action = select_action(state, epsilon)
             curr_state, reward, done, _ = env.step(action.item())
             curr_state = preprocess(curr_state)
-            next_state = torch.concat((torch.tensor(curr_state).unsqueeze(0), state[0][0].unsqueeze(0))).unsqueeze(0) # 1x2x24x24
+            next_state = torch.concat((torch.tensor((curr_state), dtype=torch.float).unsqueeze(0), state[0][0].unsqueeze(0))).unsqueeze(0) # 1x2x24x24
             
             # Store the transition in memory
             replay_memory.append((state, action, reward, next_state, done))
@@ -87,15 +90,16 @@ def train():
                 
                 # Compute a mask of non-final states
                 non_final_mask = torch.tensor(tuple(map(lambda t: t == False, batch_done)), dtype=torch.bool)
-                non_final_next_states = torch.cat([s for s, t in (batch_next_state, batch_done) if not t])
+                non_final_next_states = torch.cat([s for s, t in zip(batch_next_state, batch_done) if not t])
                 
                 # Compute Q values
+                # print(type(batch_state))
                 state_action_values = q_network(torch.cat(batch_state)).gather(1, torch.tensor(batch_action).unsqueeze(1))
                 next_state_values = torch.zeros(BATCH_SIZE)
                 next_state_values[non_final_mask] = target_network(non_final_next_states).max(1)[0].detach()
                 
                 # Compute the expected Q values
-                expected_state_action_values = (next_state_values * GAMMA) + torch.cat(batch_reward)
+                expected_state_action_values = (next_state_values * GAMMA) + torch.tensor(batch_reward, dtype=torch.float)
                 
                 # Compute Huber loss
                 loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
