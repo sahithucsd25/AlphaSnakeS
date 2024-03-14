@@ -27,7 +27,7 @@ class Grid():
 
         self.unit_size = int(unit_size)
         self.unit_gap = unit_gap
-        self.grid_size = np.asarray(grid_size, dtype=np.int) # size in terms of units
+        self.grid_size = np.asarray(grid_size, dtype=int) # size in terms of units
         height = self.grid_size[1]*self.unit_size
         width = self.grid_size[0]*self.unit_size
         channels = 3

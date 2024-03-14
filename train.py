@@ -45,7 +45,7 @@ def train():
     def select_action(state, epsilon):
         if random.random() > epsilon:
             with torch.no_grad():
-                return q_network(state).argmax(1).view(1, 1)
+                return q_network(state.float()).argmax(1).view(1, 1)
         else:
             return torch.tensor([[random.randrange(4)]], dtype=torch.long)
     

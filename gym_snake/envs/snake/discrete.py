@@ -2,7 +2,7 @@ import numpy as np
 
 class Discrete():
     def __init__(self, n_actions):
-        self.dtype = np.int32
+        self.dtype = int32
         self.n = n_actions
         self.actions = np.arange(self.n, dtype=self.dtype)
         self.shape = self.actions.shape
