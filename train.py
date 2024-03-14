@@ -7,6 +7,7 @@ from model import *
 import gym
 import gym_snake
 import math
+import time
 import numpy as np
 
 # Assume the following classes and functions are defined:
@@ -24,10 +25,10 @@ def preprocess(rgb_grid):
 N = 10000  # Capacity of the replay memory
 BATCH_SIZE = 32  # Size of the minibatch
 GAMMA = 0.99  # Discount factor
-EPISODES = 64
+EPISODES = 210
 EPS_START = 1.0  # Starting value of epsilon
 EPS_END = 0.1  # Minimum value of epsilon
-EPS_DECAY = EPISODES / 4  # Rate at which epsilon should decay
+EPS_DECAY = 500  # Rate at which epsilon should decay
 TARGET_UPDATE = 40  # Update the target network every fixed number of steps
 
 
@@ -41,6 +42,7 @@ def train():
     device = q_network.device
     target_network.load_state_dict(q_network.state_dict())
     optimizer = optim.AdamW(q_network.parameters(), lr=1e-4, eps=1e-8)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
     # Implement epsilon-greedy policy
     def select_action(state, epsilon):
@@ -78,6 +80,10 @@ def train():
 
         while True:  # for t in count():
             # Select and perform an action
+            if episode % 100 == 0: # render
+                env.render()
+                time.sleep(0.05)
+
             epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
                 -1.0 * steps_done / EPS_DECAY
             )
@@ -146,6 +152,7 @@ def train():
                 for param in q_network.parameters():
                     param.grad.data.clamp_(-1, 1)
                 optimizer.step()
+                scheduler.step()
 
             if done:
                 break
@@ -156,6 +163,11 @@ def train():
             if steps_done % TARGET_UPDATE == 0:
                 target_network.load_state_dict(q_network.state_dict())
 
+        env.close()
+
         if episode % 50 == 0:
             torch.save(q_network.state_dict(), f"network.pth")
             print(f"Episode {episode+1} complete")
+
+if __name__ == '__main__':
+    train()
