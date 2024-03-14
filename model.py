@@ -5,7 +5,6 @@ import torch.nn as nn
 class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-
         self.conv1 = nn.Conv2d(
             in_channels=2, out_channels=8, kernel_size=16, stride=8, padding=1
         )
@@ -20,6 +19,9 @@ class DQN(nn.Module):
         self.fc2 = nn.Linear(128, 4)  # Adjust as needed for multiple snakes or actions
 
         self.relu = nn.ReLU(inplace=True)
+
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.to(self.device)
 
     def forward(self, x):
         x = self.relu(self.conv1(x))
