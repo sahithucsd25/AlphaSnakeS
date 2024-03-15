@@ -28,7 +28,7 @@ GAMMA = 0.99  # Discount factor
 EPISODES = 210
 EPS_START = 1.0  # Starting value of epsilon
 EPS_END = 0.1  # Minimum value of epsilon
-EPS_DECAY = 500  # Rate at which epsilon should decay
+EPS_DECAY = 16  # Rate at which epsilon should decay
 TARGET_UPDATE = 40  # Update the target network every fixed number of steps
 
 
@@ -38,6 +38,7 @@ def train():
 
     # Initialize action-value function Q with random weights
     q_network = DQN()
+    reward = 0
     target_network = DQN()
     device = q_network.device
     target_network.load_state_dict(q_network.state_dict())
@@ -83,6 +84,7 @@ def train():
             if episode % 100 == 0: # render
                 env.render()
                 time.sleep(0.05)
+                print(reward)
 
             epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
                 -1.0 * steps_done / EPS_DECAY
