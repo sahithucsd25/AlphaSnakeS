@@ -25,29 +25,29 @@ def preprocess(rgb_grid):
 N = 10000  # Capacity of the replay memory
 BATCH_SIZE = 32  # Size of the minibatch
 GAMMA = 0.99  # Discount factor
-EPISODES = 210
+EPISODES = 500
 EPS_START = 1.0  # Starting value of epsilon
-EPS_END = 0.1  # Minimum value of epsilon
-EPS_DECAY = 16  # Rate at which epsilon should decay
-TARGET_UPDATE = 40  # Update the target network every fixed number of steps
+EPS_END = 0.05  # Minimum value of epsilon
+EPS_DECAY = 120  # Rate at which epsilon should decay
+TARGET_UPDATE = 2  # Update the target network every fixed number of steps
 
 
 def train():
-    # Initialize replay memory
     replay_memory = deque(maxlen=N)
 
-    # Initialize action-value function Q with random weights
-    q_network = DQN()
+    grid_size = '15x15'
+    width = int(grid_size[:2])
+    q_network = DQN(width)
+    # checkpoint = torch.load(f'network{grid_size}.pth')
+    # q_network.load_state_dict(checkpoint)
     reward = 0
-    target_network = DQN()
+    target_network = DQN(width)
     device = q_network.device
     target_network.load_state_dict(q_network.state_dict())
-    optimizer = optim.AdamW(q_network.parameters(), lr=1e-4, eps=1e-8)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    optimizer = optim.AdamW(q_network.parameters(), lr=1e-3, eps=1e-8)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
-    # Implement epsilon-greedy policy
     def select_action(state, epsilon):
-        # print(state.shape)
         if random.random() > epsilon:
             with torch.no_grad():
                 return q_network(state.float()).argmax(1).view(1, 1)
@@ -55,18 +55,33 @@ def train():
             return torch.tensor(
                 [[random.randrange(4)]], dtype=torch.long, device=device
             )
+        
+    def get_priority_sampling_weights(replay_memory):
+        # Extract rewards and compute the absolute values
+        rewards = np.exp(np.array([memory[2] for memory in replay_memory]))
+        # Compute a simple priority measure - higher reward gets higher probability
+        priorities = rewards / np.sum(rewards)
+        return priorities
 
-    # Setup the environment
-    env = gym.make("snake-v0", grid_size=(24, 24))
-    # env.grid_size = (24, 24)
+    def sample_from_replay_memory(replay_memory, batch_size):
+        # Get sampling probabilities
+        sampling_probs = get_priority_sampling_weights(replay_memory)
+        # Sample indices according to the probabilities
+        batch_indices = np.random.choice(range(len(replay_memory)), size=batch_size, p=sampling_probs)
+        # Retrieve the memories
+        sampled_memories = [replay_memory[idx] for idx in batch_indices]
+        return zip(*sampled_memories)
+
+    env = gym.make("snake-v0", grid_size=(width, width), n_foods=3) #, random_init=False
     state = env.reset()
-    # print(state.shape)
-    # state = preprocess(state)
 
-    # Training loop
     num_episodes = EPISODES
     steps_done = 0
+    prev_steps = 0
+    reward_per_5 = 0
+    steps_per_5 = 0
     for episode in range(num_episodes):
+        ep_reward = 0
         state = env.reset()
         prev_state = preprocess(state)
         first_action = random.randrange(1, 4)
@@ -81,16 +96,17 @@ def train():
 
         while True:  # for t in count():
             # Select and perform an action
-            if episode % 100 == 0: # render
-                env.render()
-                time.sleep(0.05)
-                print(reward)
+            # if episode % 30 == 0: # render
+                # env.render()
+                # time.sleep(0.05)
+                # print(reward)
 
             epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
                 -1.0 * steps_done / EPS_DECAY
             )
             action = select_action(state, epsilon)
             curr_state, reward, done, _ = env.step(action.item())
+            ep_reward += reward 
             curr_state = preprocess(curr_state)
             next_state = (
                 torch.concat(
@@ -103,22 +119,21 @@ def train():
                 .to(device)
             )
 
-            # Store the transition in memory
             replay_memory.append((state, action, reward, next_state, done))
 
-            # Move to the next state
             state = next_state
 
-            # Perform one step of the optimization
             if len(replay_memory) > BATCH_SIZE:
-                transitions = random.sample(replay_memory, BATCH_SIZE)
-                (
-                    batch_state,
-                    batch_action,
-                    batch_reward,
-                    batch_next_state,
-                    batch_done,
-                ) = zip(*transitions)
+                transitions = sample_from_replay_memory(replay_memory, BATCH_SIZE) 
+                batch_state, batch_action, batch_reward, batch_next_state, batch_done = transitions
+                # transitions = random.sample(replay_memory, BATCH_SIZE)
+                # (
+                #     batch_state,
+                #     batch_action,
+                #     batch_reward,
+                #     batch_next_state,
+                #     batch_done,
+                # ) = zip(*transitions)
 
                 # Compute a mask of non-final states
                 non_final_mask = torch.tensor(
@@ -129,7 +144,6 @@ def train():
                 )
 
                 # Compute Q values
-                # print(type(batch_state))
                 state_action_values = q_network(torch.cat(batch_state)).gather(
                     1, torch.tensor((batch_action), device=device).unsqueeze(1)
                 )
@@ -154,22 +168,34 @@ def train():
                 for param in q_network.parameters():
                     param.grad.data.clamp_(-1, 1)
                 optimizer.step()
-                scheduler.step()
+                # scheduler.step()
 
             if done:
                 break
 
             steps_done += 1
 
-            # Update the target network every fixed number of steps
+        # Update the target network every fixed number of steps
             if steps_done % TARGET_UPDATE == 0:
                 target_network.load_state_dict(q_network.state_dict())
 
-        env.close()
+        # env.close()
 
-        if episode % 50 == 0:
-            torch.save(q_network.state_dict(), f"network.pth")
+        if (episode+1) % 50 == 0:
+            torch.save(q_network.state_dict(), f"network{grid_size}.pth")
+
+        if (episode+1) % 5 != 0:
+            reward_per_5 += ep_reward
+            steps_per_5 += steps_done-prev_steps
+        if (episode+1) % 5 == 0:
             print(f"Episode {episode+1} complete")
+            print(f"Average reward earned: {reward_per_5/5}")
+            print(f"Average steps taken: {steps_per_5/5}")
+            reward_per_5 = 0
+            steps_per_5 = 0
+        
+
+        prev_steps = steps_done
 
 if __name__ == '__main__':
     train()
