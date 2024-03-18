@@ -9,6 +9,7 @@ import gym_snake
 import math
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Assume the following classes and functions are defined:
 # QNetwork - a PyTorch Module that represents the Q-network
@@ -25,17 +26,17 @@ def preprocess(rgb_grid):
 N = 10000  # Capacity of the replay memory
 BATCH_SIZE = 32  # Size of the minibatch
 GAMMA = 0.99  # Discount factor
-EPISODES = 500
+EPISODES = 10000
 EPS_START = 1.0  # Starting value of epsilon
 EPS_END = 0.05  # Minimum value of epsilon
-EPS_DECAY = 120  # Rate at which epsilon should decay
+EPS_DECAY = 0.999  # Rate at which epsilon should decay
 TARGET_UPDATE = 2  # Update the target network every fixed number of steps
 
 
 def train():
     replay_memory = deque(maxlen=N)
 
-    grid_size = '15x15'
+    grid_size = "15x15"
     width = int(grid_size[:2])
     q_network = DQN(width)
     # checkpoint = torch.load(f'network{grid_size}.pth')
@@ -55,7 +56,7 @@ def train():
             return torch.tensor(
                 [[random.randrange(4)]], dtype=torch.long, device=device
             )
-        
+
     def get_priority_sampling_weights(replay_memory):
         # Extract rewards and compute the absolute values
         rewards = np.exp(np.array([memory[2] for memory in replay_memory]))
@@ -67,24 +68,33 @@ def train():
         # Get sampling probabilities
         sampling_probs = get_priority_sampling_weights(replay_memory)
         # Sample indices according to the probabilities
-        batch_indices = np.random.choice(range(len(replay_memory)), size=batch_size, p=sampling_probs)
+        batch_indices = np.random.choice(
+            range(len(replay_memory)), size=batch_size, p=sampling_probs
+        )
         # Retrieve the memories
         sampled_memories = [replay_memory[idx] for idx in batch_indices]
         return zip(*sampled_memories)
-
-    env = gym.make("snake-v0", grid_size=(width, width), n_foods=3) #, random_init=False
-    state = env.reset()
 
     num_episodes = EPISODES
     steps_done = 0
     prev_steps = 0
     reward_per_5 = 0
     steps_per_5 = 0
+    initial_foods = 30  # Start with 10 foods
+    food_decrease_episodes = 1000
+    
+    epsilon = EPS_START
     for episode in range(num_episodes):
+        current_foods = max(3, initial_foods - (episode // food_decrease_episodes))
+        if (episode % 10 == 0):
+            env = gym.make(
+            "snake-v0", grid_size=(width, width), n_foods=current_foods
+        )  # , random_init=False
+
         ep_reward = 0
         state = env.reset()
         prev_state = preprocess(state)
-        first_action = random.randrange(1, 4)
+        first_action = int(random.randrange(0, 4))
         curr_state, _, _, _ = env.step(first_action)
         curr_state = preprocess(curr_state)  # 24x24
         state = (
@@ -93,25 +103,30 @@ def train():
             .to(device)
         )
         # print(state.shape)
+        epsilon *= EPS_DECAY
+        epsilon = max(EPS_END, epsilon)
 
         while True:  # for t in count():
             # Select and perform an action
-            # if episode % 30 == 0: # render
-                # env.render()
-                # time.sleep(0.05)
-                # print(reward)
+            if episode % 50 == 0:  # render
+                env.render()
+                time.sleep(0.05)
+                # env.close()
 
-            epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
-                -1.0 * steps_done / EPS_DECAY
-            )
+            # epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
+            #     -1.0 * steps_done / EPS_DECAY
+            # )  # steps_done is episodes completed
+            
             action = select_action(state, epsilon)
             curr_state, reward, done, _ = env.step(action.item())
-            ep_reward += reward 
+            ep_reward += reward
             curr_state = preprocess(curr_state)
             next_state = (
                 torch.concat(
                     (
-                        torch.tensor((curr_state), dtype=torch.float, device=device).unsqueeze(0),
+                        torch.tensor(
+                            (curr_state), dtype=torch.float, device=device
+                        ).unsqueeze(0),
                         state[0][0].unsqueeze(0),
                     )
                 )
@@ -124,8 +139,14 @@ def train():
             state = next_state
 
             if len(replay_memory) > BATCH_SIZE:
-                transitions = sample_from_replay_memory(replay_memory, BATCH_SIZE) 
-                batch_state, batch_action, batch_reward, batch_next_state, batch_done = transitions
+                transitions = sample_from_replay_memory(replay_memory, BATCH_SIZE)
+                (
+                    batch_state,
+                    batch_action,
+                    batch_reward,
+                    batch_next_state,
+                    batch_done,
+                ) = transitions
                 # transitions = random.sample(replay_memory, BATCH_SIZE)
                 # (
                 #     batch_state,
@@ -175,27 +196,28 @@ def train():
 
             steps_done += 1
 
-        # Update the target network every fixed number of steps
+            # Update the target network every fixed number of steps
             if steps_done % TARGET_UPDATE == 0:
                 target_network.load_state_dict(q_network.state_dict())
+        env.close()
+        plt.close()
+            
 
-        # env.close()
-
-        if (episode+1) % 50 == 0:
-            torch.save(q_network.state_dict(), f"network{grid_size}.pth")
-
-        if (episode+1) % 5 != 0:
+        if (episode + 1) % 500 != 0:
             reward_per_5 += ep_reward
-            steps_per_5 += steps_done-prev_steps
-        if (episode+1) % 5 == 0:
-            print(f"Episode {episode+1} complete")
-            print(f"Average reward earned: {reward_per_5/5}")
-            print(f"Average steps taken: {steps_per_5/5}")
+            steps_per_5 += steps_done - prev_steps
+        if (episode + 1) % 500 == 0:
+            print(
+                f"Episode: {episode+1:5d}, Mean Reward: {reward_per_5/500:.2f}, Average steps taken: {steps_per_5/500:.2f}"
+            )
             reward_per_5 = 0
             steps_per_5 = 0
-        
 
         prev_steps = steps_done
 
-if __name__ == '__main__':
+    # save model
+    torch.save(q_network.state_dict(), f"network{grid_size}.pth")
+
+
+if __name__ == "__main__":
     train()

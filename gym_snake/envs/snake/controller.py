@@ -83,11 +83,11 @@ class Controller():
             reward = 1
             self.grid.new_food()
         else:
-            reward = 0
-            # '''empty_coord = snake.body.popleft()
-            # self.grid.connect(empty_coord, snake.body[0], self.grid.SPACE_COLOR)
-            # self.grid.draw(snake.head, snake.head_color)'''
-            # # Move was made, calculate the new distance to the fruit
+            reward = 0.1
+            '''empty_coord = snake.body.popleft()
+            self.grid.connect(empty_coord, snake.body[0], self.grid.SPACE_COLOR)
+            self.grid.draw(snake.head, snake.head_color)'''
+            # Move was made, calculate the new distance to the fruit
             # new_distance = self.calculate_distance_to_food(prevHead)
             
             # # Compare the old and new distances to determine if the snake has moved closer
@@ -146,14 +146,12 @@ class Controller():
             if self.snakes[i] is None and self.dead_snakes[i] is not None:
                 self.kill_snake(i)
             self.move_snake(direction,i)
-            rewards.append(self.move_result(direction, i))
-            # if self.snakes[0] is None:
-            #     self.move_snake(direction,i)
-            #     rewards.append(0)
-            # else:
-            #     prevCord = self.snakes[0].head
-            #     self.move_snake(direction,i)
-            #     rewards.append(self.move_result(direction, prevCord, i))
+            # rewards.append(self.move_result(direction, i))
+            if self.snakes[0] is None:
+                rewards.append(0)
+            else:
+                prevCord = self.snakes[0].head
+                rewards.append(self.move_result(direction, prevCord, i))
 
         done = self.snakes_remaining < 1 or self.grid.open_space < 1
         if len(rewards) == 1:

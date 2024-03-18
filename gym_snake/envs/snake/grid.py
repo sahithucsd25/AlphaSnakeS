@@ -34,7 +34,7 @@ class Grid():
         self.grid = np.zeros((height, width, channels), dtype=np.uint8)
         self.grid[:,:,:] = self.SPACE_COLOR
         self.open_space = grid_size[0]*grid_size[1]
-        # self.food_position = None
+        self.food_position = None
 
     def check_death(self, head_coord):
         """
@@ -207,7 +207,7 @@ class Grid():
 
         num - the integer denoting the 
         """
-        # self.food_position = coord
+        self.food_position = coord
         if self.open_space < 1 or not np.array_equal(self.color_of(coord), self.SPACE_COLOR):
             return False
         self.draw(coord, self.FOOD_COLOR)
@@ -224,7 +224,7 @@ class Grid():
         coord_not_found = True
         while(coord_not_found):
             coord = (np.random.randint(0,self.grid_size[0]), np.random.randint(0,self.grid_size[1]))
-            # self.food_position = coord
+            self.food_position = coord
             if np.array_equal(self.color_of(coord), self.SPACE_COLOR):
                 coord_not_found = False
         self.draw(coord, self.FOOD_COLOR)
