@@ -108,10 +108,10 @@ def train():
 
         while True:  # for t in count():
             # Select and perform an action
-            if episode % 50 == 0:  # render
-                env.render()
-                time.sleep(0.05)
-                # env.close()
+            # if episode % 50 == 0:  # render
+            #     env.render()
+            #     time.sleep(0.05)
+            #     # env.close()
 
             # epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
             #     -1.0 * steps_done / EPS_DECAY
