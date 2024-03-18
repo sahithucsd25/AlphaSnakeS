@@ -1,3 +1,4 @@
+import sys
 import random
 import torch
 import torch.optim as optim
@@ -17,6 +18,17 @@ import matplotlib.pyplot as plt
 # Environment - a class that provides methods `reset()` and `step(action)` to interact with the game
 
 
+def set_seed(seed_value=42):
+    """Set seed for reproducibility."""
+    torch.manual_seed(seed_value)
+    torch.cuda.manual_seed(seed_value)
+    torch.cuda.manual_seed_all(seed_value)  # if you are using multi-GPU.
+    np.random.seed(seed_value)  # Numpy module.
+    random.seed(seed_value)  # Python random module.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+set_seed(9)
+
 def preprocess(rgb_grid):
     greyscale_grid = np.dot(rgb_grid[..., :3], [0.299, 0.587, 0.114])
     return greyscale_grid
@@ -35,14 +47,11 @@ TARGET_UPDATE = 2  # Update the target network every fixed number of steps
 
 def train():
     replay_memory = deque(maxlen=N)
-
+    device = 0 if len(sys.argv) == 1 else int(sys.argv[1])
     grid_size = "15x15"
     width = int(grid_size[:2])
-    q_network = DQN(width)
-    # checkpoint = torch.load(f'network{grid_size}.pth')
-    # q_network.load_state_dict(checkpoint)
-    reward = 0
-    target_network = DQN(width)
+    q_network = DQN(width, device)
+    target_network = DQN(width, device)
     device = q_network.device
     target_network.load_state_dict(q_network.state_dict())
     optimizer = optim.AdamW(q_network.parameters(), lr=1e-3, eps=1e-8)
@@ -82,11 +91,12 @@ def train():
     steps_per_5 = 0
     initial_foods = 30  # Start with 10 foods
     food_decrease_episodes = 1000
-    
+    file_name = f"network{grid_size}_same_1.pth"
+
     epsilon = EPS_START
     for episode in range(num_episodes):
-        current_foods = max(3, initial_foods - (episode // food_decrease_episodes))
-        if (episode % 10 == 0):
+        current_foods = max(3, initial_foods)
+        if (episode % 10 == 0): # increase this value?
             env = gym.make(
             "snake-v0", grid_size=(width, width), n_foods=current_foods
         )  # , random_init=False
@@ -108,10 +118,10 @@ def train():
 
         while True:  # for t in count():
             # Select and perform an action
-            # if episode % 50 == 0:  # render
-            #     env.render()
-            #     time.sleep(0.05)
-            #     # env.close()
+            if episode % 500 == 0:  # render
+                env.render()
+                time.sleep(0.05)
+                # env.close()
 
             # epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
             #     -1.0 * steps_done / EPS_DECAY
@@ -186,8 +196,8 @@ def train():
                 # Optimize the model
                 optimizer.zero_grad()
                 loss.backward()
-                for param in q_network.parameters():
-                    param.grad.data.clamp_(-1, 1)
+                # for param in q_network.parameters():
+                #     param.grad.data.clamp_(-1, 1)
                 optimizer.step()
                 # scheduler.step()
 
@@ -207,6 +217,7 @@ def train():
             reward_per_5 += ep_reward
             steps_per_5 += steps_done - prev_steps
         if (episode + 1) % 500 == 0:
+            torch.save(q_network.state_dict(), file_name)
             print(
                 f"Episode: {episode+1:5d}, Mean Reward: {reward_per_5/500:.2f}, Average steps taken: {steps_per_5/500:.2f}"
             )

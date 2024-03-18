@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class DQN(nn.Module):
-    def __init__(self, width):
+    def __init__(self, width, device):
         super(DQN, self).__init__()
 
         if width == 24:# input size 24x24 (240x240)
@@ -28,7 +28,7 @@ class DQN(nn.Module):
 
         self.relu = nn.ReLU(inplace=True)
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(f"cuda:{device}" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
     def forward(self, x):
