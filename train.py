@@ -12,11 +12,6 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Assume the following classes and functions are defined:
-# QNetwork - a PyTorch Module that represents the Q-network
-# preprocess - a function that preprocesses raw images to the desired input format
-# Environment - a class that provides methods `reset()` and `step(action)` to interact with the game
-
 
 def set_seed(seed_value=42):
     """Set seed for reproducibility."""
@@ -27,7 +22,10 @@ def set_seed(seed_value=42):
     random.seed(seed_value)  # Python random module.
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
+
 set_seed(9)
+
 
 def preprocess(rgb_grid):
     greyscale_grid = np.dot(rgb_grid[..., :3], [0.299, 0.587, 0.114])
@@ -96,10 +94,10 @@ def train():
     epsilon = EPS_START
     for episode in range(num_episodes):
         current_foods = max(3, initial_foods)
-        if (episode % 10 == 0): # increase this value?
+        if episode % 10 == 0:  # increase this value?
             env = gym.make(
-            "snake-v0", grid_size=(width, width), n_foods=current_foods
-        )  # , random_init=False
+                "snake-v0", grid_size=(width, width), n_foods=current_foods
+            )  # , random_init=False
 
         ep_reward = 0
         state = env.reset()
@@ -112,21 +110,16 @@ def train():
             .unsqueeze(0)
             .to(device)
         )
-        # print(state.shape)
-        epsilon *= EPS_DECAY
-        epsilon = max(EPS_END, epsilon)
+        # epsilon *= EPS_DECAY
+        # epsilon = max(EPS_END, epsilon)
+        epsilon = max(EPS_END, epsilon * EPS_DECAY)
 
         while True:  # for t in count():
             # Select and perform an action
-            if episode % 500 == 0:  # render
-                env.render()
-                time.sleep(0.05)
-                # env.close()
+            # if episode % 500 == 0:  # render
+            #     env.render()
+            #     time.sleep(0.05)
 
-            # epsilon = EPS_END + (EPS_START - EPS_END) * math.exp(
-            #     -1.0 * steps_done / EPS_DECAY
-            # )  # steps_done is episodes completed
-            
             action = select_action(state, epsilon)
             curr_state, reward, done, _ = env.step(action.item())
             ep_reward += reward
@@ -145,7 +138,6 @@ def train():
             )
 
             replay_memory.append((state, action, reward, next_state, done))
-
             state = next_state
 
             if len(replay_memory) > BATCH_SIZE:
@@ -157,24 +149,22 @@ def train():
                     batch_next_state,
                     batch_done,
                 ) = transitions
-                # transitions = random.sample(replay_memory, BATCH_SIZE)
-                # (
-                #     batch_state,
-                #     batch_action,
-                #     batch_reward,
-                #     batch_next_state,
-                #     batch_done,
-                # ) = zip(*transitions)
 
                 # Compute a mask of non-final states
                 non_final_mask = torch.tensor(
                     tuple(map(lambda t: t == False, batch_done)), dtype=torch.bool
                 )
+                print("bns", len(batch_next_state), len(batch_next_state[0]), len(batch_next_state[0][0]), len(batch_next_state[0][0][0]))
                 non_final_next_states = torch.cat(
                     [s for s, t in zip(batch_next_state, batch_done) if not t]
                 )
+                print(non_final_next_states.shape)
 
                 # Compute Q values
+                # print(len(batch_state), len(batch_state[0]), len(batch_state[0][0]), len(batch_state[0][0][0]))
+                # print(len(batch_action[0]))
+
+                # print(torch.cat(batch_state).shape)
                 state_action_values = q_network(torch.cat(batch_state)).gather(
                     1, torch.tensor((batch_action), device=device).unsqueeze(1)
                 )
@@ -182,6 +172,8 @@ def train():
                 next_state_values[non_final_mask] = (
                     target_network(non_final_next_states).max(1)[0].detach()
                 )
+                print(len(next_state_values[non_final_mask]))
+                print(next_state_values.shape)
 
                 # Compute the expected Q values
                 expected_state_action_values = (
@@ -211,7 +203,6 @@ def train():
                 target_network.load_state_dict(q_network.state_dict())
         env.close()
         plt.close()
-            
 
         if (episode + 1) % 500 != 0:
             reward_per_5 += ep_reward
