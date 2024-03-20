@@ -41,6 +41,14 @@ def prepare_batch(batch_state, batch_action, batch_reward, batch_next_state, bat
 
     return batch_state, batch_action, batch_reward, batch_next_state, batch_done
 
+def plot_preprocessed_state(processed_grid):
+    plt.figure(figsize=(5, 5))
+    plt.imshow(processed_grid, cmap='gray')
+    plt.title("Preprocessed State")
+    plt.axis('off')
+    plt.show()
+
+
 
 def sample_from_replay_memory(replay_memory, batch_size):
         # Get sampling probabilities
@@ -60,7 +68,7 @@ def random_sample_from_replay_memory(replay_memory, batch_size):
 
 class Trainer:
     def __init__(self, grid_size="10x10", episodes=10000, batch_size=32, gamma=0.99,
-                 eps_start=1.0, eps_end=0.05, eps_decay=0.999, target_update=2, replay_memory_size=10000):
+                 eps_start=1.0, eps_end=0.05, eps_decay=0.999, target_update=2, replay_memory_size=10000, num=0, vis=True):
         self.grid_size = grid_size
         self.dim = int(grid_size[:2])
         self.episodes = episodes
@@ -71,14 +79,15 @@ class Trainer:
         self.eps_decay = eps_decay
         self.target_update = target_update
         self.replay_memory = deque(maxlen=replay_memory_size)
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.env = gym.make("snake-v0", grid_size=(int(grid_size[:2]), int(grid_size[:2])), n_foods=1)
+        self.device = torch.device(f"cuda:{num}" if torch.cuda.is_available() else "cpu")
+        self.env = gym.make("snake-v0", grid_size=(self.dim, self.dim), n_foods=1)
         self.q_network = DQN(self.dim, self.device)
         self.target_network = DQN(self.dim, self.device)
         self.optimizer = optim.AdamW(self.q_network.parameters(), lr=1e-3, eps=1e-8)
         self.target_network.load_state_dict(self.q_network.state_dict())
         self.steps_done = 0
         self.epsilon = self.eps_start
+        self.vis = vis
         
 
     def select_action(self, state):
@@ -114,9 +123,12 @@ class Trainer:
         self.optimizer.step()
 
     def train(self):
+        avg_steps_history = []  # To keep track of average steps per episode at each check
+        check_frequency = 500
+        
         for episode in range(self.episodes):
-            if (episode % 20 == 0):
-                self.env = gym.make("snake-v0", grid_size=(10, 10), n_foods=30)
+            if (episode % 40 == 0):
+                self.env = gym.make("snake-v0", grid_size=(self.dim, self.dim), n_foods=30)
 
 
             current_state = preprocess(self.env.reset())
@@ -126,14 +138,19 @@ class Trainer:
             ep_reward = 0
             steps_this_episode = 0
             while True:
-                if episode % 100 == 0:  # render
+                if self.vis and episode % 100 == 0:  # render
                     self.env.render()
                     time.sleep(0.05)
 
                 state = torch.cat((prev_state, current_state), dim=0) 
                 action = self.select_action(state)
                 next_state_raw, reward, done, _ = self.env.step(action.item())
+
+                if done:
+                    break
+
                 next_state_raw = preprocess(next_state_raw)
+                # plot_preprocessed_state(next_state_raw)
                 next_state = torch.tensor([next_state_raw], device=self.device, dtype=torch.float)
 
                 ep_reward += reward
@@ -147,9 +164,6 @@ class Trainer:
                 self.steps_done += 1
                 steps_this_episode += 1
 
-                if done:
-                    break
-
                 if self.steps_done % self.target_update == 0:
                     self.target_network.load_state_dict(self.q_network.state_dict())
             
@@ -157,15 +171,24 @@ class Trainer:
             plt.close()
 
             self.epsilon = max(self.eps_end, self.epsilon * self.eps_decay)
-            if episode % 100 == 0 or episode == self.episodes - 1:  # Also print for the last episode
+            if episode % check_frequency == 0 or episode == self.episodes - 1:  # Also print for the last episode
                 mean_reward = ep_reward / steps_this_episode if steps_this_episode else 0
                 avg_steps_per_episode = self.steps_done / (episode + 1)
+                avg_steps_history.append(avg_steps_per_episode)
+
                 print(f'Episode {episode}, Mean reward: {mean_reward:.2f}, Average steps per episode: {avg_steps_per_episode:.2f}, Epsilon: {self.epsilon}')
+
+                if len(avg_steps_history) > 4 and avg_steps_history[-1] <= avg_steps_history[-4]:
+                    print("No improvement in average steps per episode after 3 checks. Stopping training.")
+                    break
 
         print('Training complete')
 
 
 if __name__ == "__main__":
-    set_seed(9) 
-    trainer = Trainer()
-    trainer.train()
+    for i in range(0, 10):
+        set_seed(i)
+        num = 0 if len(sys.argv) == 1 else int(sys.argv[1])
+        trainer = Trainer(num=num, vis=False)
+        trainer.train()
+        print("seed", i)

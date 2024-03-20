@@ -1,4 +1,3 @@
 *.egg-info/
 /__pycache__
 network.pth
-train3.py
