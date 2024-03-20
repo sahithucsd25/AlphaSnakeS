@@ -25,11 +25,11 @@ def preprocess(rgb_grid):
 N = 10000  # Capacity of the replay memory
 BATCH_SIZE = 32  # Size of the minibatch
 GAMMA = 0.99  # Discount factor
-EPISODES = 210
+EPISODES = 1010
 EPS_START = 1.0  # Starting value of epsilon
 EPS_END = 0.1  # Minimum value of epsilon
-EPS_DECAY = 16  # Rate at which epsilon should decay
-TARGET_UPDATE = 40  # Update the target network every fixed number of steps
+EPS_DECAY = 120  # Rate at which epsilon should decay
+TARGET_UPDATE = 2  # Update the target network every fixed number of steps
 
 
 def train():
@@ -37,12 +37,15 @@ def train():
     replay_memory = deque(maxlen=N)
 
     # Initialize action-value function Q with random weights
-    q_network = DQN()
+    grid_size = '15x15'
+    width = int(grid_size[:2])
+    q_network = DQN(width)
     reward = 0
-    target_network = DQN()
-    device = q_network.device
+    target_network = DQN(width)
+    device = 'cpu'
+    q_network.to(device)
     target_network.load_state_dict(q_network.state_dict())
-    optimizer = optim.AdamW(q_network.parameters(), lr=1e-4, eps=1e-8)
+    optimizer = optim.AdamW(q_network.parameters(), lr=1e-3, eps=1e-8)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
     # Implement epsilon-greedy policy
@@ -57,7 +60,7 @@ def train():
             )
 
     # Setup the environment
-    env = gym.make("snake-v0", grid_size=(24, 24))
+    env = gym.make("snake-v0", grid_size=(15, 15))
     # env.grid_size = (24, 24)
     state = env.reset()
     # print(state.shape)

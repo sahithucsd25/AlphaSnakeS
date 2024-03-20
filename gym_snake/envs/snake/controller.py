@@ -72,13 +72,13 @@ class Controller():
             self.snakes[snake_idx] = None
             self.grid.cover(snake.head, snake.head_color) # Avoid miscount of grid.open_space
             self.grid.connect(snake.body.popleft(), snake.body[0], self.grid.SPACE_COLOR)
-            reward = -100
+            reward = -1
         # Check for reward
         elif self.grid.food_space(snake.head):
             self.grid.draw(snake.body[0], self.grid.BODY_COLOR) # Redraw tail
             self.grid.connect(snake.body[0], snake.body[1], self.grid.BODY_COLOR)
             self.grid.cover(snake.head, snake.head_color) # Avoid miscount of grid.open_space
-            reward = 10000
+            reward = 1
             self.grid.new_food()
         else:
             '''reward = 0
@@ -92,7 +92,7 @@ class Controller():
             if new_distance > old_distance:
                 reward = 1  # Positive reward for moving closer
             else:
-                reward = -0.5  # Small penalty for moving away or staying the same
+                reward = -1  # Small penalty for moving away or staying the same
 
             empty_coord = snake.body.popleft()
             self.grid.connect(empty_coord, snake.body[0], self.grid.SPACE_COLOR)
