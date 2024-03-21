@@ -84,18 +84,18 @@ class Controller():
             self.grid.new_food()
         else:
             #reward = 0.01
+            reward = 0
             '''empty_coord = snake.body.popleft()
             self.grid.connect(empty_coord, snake.body[0], self.grid.SPACE_COLOR)
             self.grid.draw(snake.head, snake.head_color)'''
             # Move was made, calculate the new distance to the fruit
-            # new_distance = self.calculate_distance_to_food(prevHead)
-            new_distance = self.calculate_distance_to_food(snake.head)
+            #new_distance = self.calculate_distance_to_food(snake.head)
             
             # # Compare the old and new distances to determine if the snake has moved closer
-            if new_distance < old_distance:
-                reward = 0.01  # Positive reward for moving closer
-            else:
-                reward = -0.01 * new_distance  # Small penalty for moving away or staying the same
+            #if new_distance < old_distance:
+            #    reward = 0.01  # Positive reward for moving closer
+            #else:
+            #    reward = -0.01 * new_distance  # Small penalty for moving away or staying the same
 
             empty_coord = snake.body.popleft()
             self.grid.connect(empty_coord, snake.body[0], self.grid.SPACE_COLOR)

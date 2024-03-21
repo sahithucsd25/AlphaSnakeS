@@ -71,11 +71,15 @@ def main():
     epsilon_start = 1.0
     epsilon_final = 0.01
     epsilon_decay = 500
-    episodes = 1000
+    episodes = 100000
+
+    fruit_100 = []
+    steps_100 = []
 
     steps_done = 0
     for episode in range(episodes):
         current_foods = max(min_foods, initial_foods - episode // food_decay_rate)
+        #current_foods = 1
         env = gym.make('snake-v0', n_foods=current_foods, grid_size=(6,6))
         state = env.reset()
         state = np.transpose(state, (2, 0, 1))
@@ -87,9 +91,9 @@ def main():
         done = False
         while not done:
             total_steps += 1
-            #if episode % 100 == 0:  # render
-            #        env.render()
-            #        time.sleep(0.05)
+            if episode % 1000 == 0:  # render
+                env.render()
+                time.sleep(0.5)
 
             combined_state = np.concatenate((prev_state, state), axis=0)  # Combine current and previous states
             
@@ -127,9 +131,15 @@ def main():
         if episode % 10 == 0:  # Update the target network
             target_net.load_state_dict(policy_net.state_dict())
 
+        fruit_100.append(fruits_eaten)
+        steps_100.append(total_steps)
+
+        if episode % 100 == 0:
+            print(f"Episode: {episode}, 100 Fruit Average: {np.mean(fruit_100)}, 100 Step Average: {np.mean(steps_100)}")
+            fruit_100 = []
+            steps_100 = []
         
-        
-        print(f'Episode {episode}, Total reward: {total_reward}, Epsilon: {epsilon:.2f}, Fruits eaten: {fruits_eaten}, Steps: {total_steps}')
+        #print(f'Episode {episode}, Total reward: {total_reward}, Epsilon: {epsilon:.2f}, Fruits eaten: {fruits_eaten}, Steps: {total_steps}')
 
     env.close()
 
