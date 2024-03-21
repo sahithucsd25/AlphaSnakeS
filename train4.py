@@ -53,6 +53,7 @@ def update_policy(net, target_net, optimizer, memory, batch_size, gamma):
     optimizer.step()
 
 def main():
+    device = "cuda:1" if torch.cuda.is_available() else "cpu"
     initial_foods = 5  # Start with more foods
     min_foods = 1  # Minimum number of foods
     food_decay_rate = 5  # Number of episodes to reduce the number of foods
@@ -79,7 +80,7 @@ def main():
     steps_done = 0
     for episode in range(episodes):
         current_foods = max(min_foods, initial_foods - episode // food_decay_rate)
-        #current_foods = 1
+        # current_foods = 1
         env = gym.make('snake-v0', n_foods=current_foods, grid_size=(6,6))
         state = env.reset()
         state = np.transpose(state, (2, 0, 1))
@@ -91,9 +92,9 @@ def main():
         done = False
         while not done:
             total_steps += 1
-            if episode % 1000 == 0:  # render
-                env.render()
-                time.sleep(0.5)
+            # if episode % 1000 == 0:  # render
+            #     env.render()
+            #     time.sleep(0.5)
 
             combined_state = np.concatenate((prev_state, state), axis=0)  # Combine current and previous states
             
@@ -112,7 +113,7 @@ def main():
 
             #print(reward)
 
-            if (reward == 2):
+            if (reward == 3):
                 fruits_eaten += 1
 
             next_state = np.transpose(next_state, (2, 0, 1))
@@ -125,7 +126,7 @@ def main():
             prev_state = state.copy()  # Update the previous state
 
             update_policy(policy_net, target_net, optimizer, memory, batch_size, gamma)
-        env.close()
+        # env.close()
         
 
         if episode % 10 == 0:  # Update the target network
@@ -139,8 +140,6 @@ def main():
             fruit_100 = []
             steps_100 = []
         
-        #print(f'Episode {episode}, Total reward: {total_reward}, Epsilon: {epsilon:.2f}, Fruits eaten: {fruits_eaten}, Steps: {total_steps}')
-
     env.close()
 
 if __name__ == "__main__":
