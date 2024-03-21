@@ -23,6 +23,14 @@ class ReplayBuffer:
 
     def __len__(self):
         return len(self.buffer)
+    
+def set_seed(seed_value=42):
+    torch.manual_seed(seed_value)
+    torch.cuda.manual_seed_all(seed_value)
+    np.random.seed(seed_value)
+    random.seed(seed_value)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
 def update_policy(net, target_net, optimizer, memory, batch_size, gamma):
     if len(memory) < batch_size:
@@ -45,7 +53,10 @@ def update_policy(net, target_net, optimizer, memory, batch_size, gamma):
     optimizer.step()
 
 def main():
-    env = gym.make('snake-v0', n_foods=40)
+    initial_foods = 5  # Start with more foods
+    min_foods = 1  # Minimum number of foods
+    food_decay_rate = 5  # Number of episodes to reduce the number of foods
+    env = gym.make('snake-v0', n_foods=initial_foods, grid_size=(6,6))
     n_actions = env.action_space.n
 
     policy_net = DQN(in_channels=6, n_actions=n_actions)
@@ -64,14 +75,19 @@ def main():
 
     steps_done = 0
     for episode in range(episodes):
+        current_foods = max(min_foods, initial_foods - episode // food_decay_rate)
+        env = gym.make('snake-v0', n_foods=current_foods, grid_size=(6,6))
         state = env.reset()
         state = np.transpose(state, (2, 0, 1))
         prev_state = np.zeros_like(state)  # Initialize prev state as zeros
         
+        total_steps = 0
+        fruits_eaten = 0
         total_reward = 0
         done = False
         while not done:
-            if episode % 1 == 0:  # render
+            total_steps += 1
+            if episode % 100 == 0:  # render
                     env.render()
                     time.sleep(0.05)
             combined_state = np.concatenate((prev_state, state), axis=0)  # Combine current and previous states
@@ -88,6 +104,12 @@ def main():
                     action = policy_net(combined_state_tensor).max(1)[1].view(1, 1).item()
 
             next_state, reward, done, _ = env.step(action)
+
+            #print(reward)
+
+            if (reward == 2):
+                fruits_eaten += 1
+
             next_state = np.transpose(next_state, (2, 0, 1))
             next_combined_state = np.concatenate((state, next_state), axis=0)  # Next combined state for memory
             
@@ -103,10 +125,13 @@ def main():
 
         if episode % 10 == 0:  # Update the target network
             target_net.load_state_dict(policy_net.state_dict())
+
         
-        print(f'Episode {episode}, Total reward: {total_reward}, Epsilon: {epsilon:.2f}')
+        
+        print(f'Episode {episode}, Total reward: {total_reward}, Epsilon: {epsilon:.2f}, Fruits eaten: {fruits_eaten}, Steps: {total_steps}')
 
     env.close()
 
 if __name__ == "__main__":
+    set_seed(42)
     main()
