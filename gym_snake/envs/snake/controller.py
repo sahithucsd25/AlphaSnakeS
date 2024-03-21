@@ -11,7 +11,7 @@ class Controller():
 
         assert n_snakes < grid_size[0]//3
         assert n_snakes < 25
-        assert snake_size < grid_size[1]//2
+        assert snake_size <= grid_size[1]//2
         assert unit_gap >= 0 and unit_gap < unit_size
 
         self.snakes_remaining = n_snakes
@@ -73,17 +73,17 @@ class Controller():
             self.grid.cover(snake.head, snake.head_color) # Avoid miscount of grid.open_space
             self.grid.connect(snake.body.popleft(), snake.body[0], self.grid.SPACE_COLOR)
             # reward = -100
-            reward = -10
+            reward = -1
         # Check for reward
         elif self.grid.food_space(snake.head):
             self.grid.draw(snake.body[0], self.grid.BODY_COLOR) # Redraw tail
             self.grid.connect(snake.body[0], snake.body[1], self.grid.BODY_COLOR)
             self.grid.cover(snake.head, snake.head_color) # Avoid miscount of grid.open_space
             # reward = 10000
-            reward = 2
+            reward = 3
             self.grid.new_food()
         else:
-            reward = 0.01
+            reward = -0.001
             '''empty_coord = snake.body.popleft()
             self.grid.connect(empty_coord, snake.body[0], self.grid.SPACE_COLOR)
             self.grid.draw(snake.head, snake.head_color)'''
@@ -141,6 +141,7 @@ class Controller():
 
         if type(directions) == type(int()):
             directions = [directions]
+        # print(directions)
 
         for i, direction in enumerate(directions):
             if self.snakes[i] is None and self.dead_snakes[i] is not None:

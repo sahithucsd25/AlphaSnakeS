@@ -1,5 +1,6 @@
 import os, subprocess, time, signal
 import numpy as np
+import random
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
@@ -56,5 +57,7 @@ class SnakeEnv(gym.Env):
         plt.pause(frame_speed)
         self.fig.canvas.draw()
 
-    def seed(self, x):
-        pass
+    def seed(self, seed):
+        self.np_random, seed = gym.utils.seeding.np_random(seed)
+        random.seed(seed)
+        np.random.seed(seed)

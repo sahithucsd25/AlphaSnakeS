@@ -29,7 +29,7 @@ class DQN(nn.Module):
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
 
         # Assume the input size to be 84x84. Adjust fc input size accordingly.
-        self.fc = nn.Linear(14400, 512)
+        self.fc = nn.Linear(1024, 512)
         self.out = nn.Linear(512, n_actions)
 
     def forward(self, x):
