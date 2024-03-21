@@ -95,7 +95,7 @@ class Controller():
             if new_distance < old_distance:
                 reward = 0.01  # Positive reward for moving closer
             else:
-                reward = -0.01  # Small penalty for moving away or staying the same
+                reward = -0.01 * new_distance  # Small penalty for moving away or staying the same
 
             empty_coord = snake.body.popleft()
             self.grid.connect(empty_coord, snake.body[0], self.grid.SPACE_COLOR)

@@ -87,9 +87,10 @@ def main():
         done = False
         while not done:
             total_steps += 1
-            if episode % 100 == 0:  # render
-                    env.render()
-                    time.sleep(0.05)
+            #if episode % 100 == 0:  # render
+            #        env.render()
+            #        time.sleep(0.05)
+
             combined_state = np.concatenate((prev_state, state), axis=0)  # Combine current and previous states
             
             epsilon = epsilon_final + (epsilon_start - epsilon_final) * \
